@@ -33,9 +33,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
 
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
-
       - name: Build Android APK
         run: ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
 
