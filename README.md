@@ -27,7 +27,7 @@ You can also transfer the APK to the phone and open it there. Android may ask yo
 1. Open Call Blocker. On first launch, Android asks whether it may become the Call Screening app.
 2. Approve the request. If it was dismissed, tap **Make active** in the app.
 3. Grant contacts access when requested. Android does not send calls from saved contacts to a screening app without this permission, so it is needed to enforce the local whitelist for those callers too.
-4. Add every number that should be allowed to ring. Numbers are normalized before storage and matched using Android's country-aware phone-number API, so formatting differences such as spaces, hyphens, parentheses, or a national number versus `+49...` are handled.
+4. Add every number that should be allowed to ring. Android validates numbers and stores them in E.164 form, so formatting differences such as spaces, hyphens, parentheses, or a national number versus `+49...` are handled. National numbers are interpreted using the SIM country, then the network or device country when no SIM country is available.
 
 On OxygenOS 12, the role can also be checked under **Settings > Apps > Default apps > Caller ID & spam app**. The exact label can vary by OxygenOS release.
 
@@ -37,7 +37,8 @@ On OxygenOS 12, the role can also be checked under **Settings > Apps > Default a
 2. Call the phone from that number and confirm that it rings.
 3. Remove the number, call again, and confirm that Android rejects the call.
 4. Call from a different number and confirm that it is rejected.
-5. Confirm the app still says **Status: active Call Screening app** after restarting the phone.
+5. Save a non-whitelisted test caller as a contact and confirm that it is still rejected when contacts access is granted.
+6. Confirm the app still says **Status: active Call Screening app** after restarting the phone.
 
 Blocked calls remain visible in Android's call log and produce the normal blocked-call notification where the device supports it.
 

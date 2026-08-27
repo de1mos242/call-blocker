@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.role.RoleManager
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.WindowInsets
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -40,6 +42,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        findViewById<View>(R.id.root).setOnApplyWindowInsetsListener { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsets.Type.systemBars() or
+                    WindowInsets.Type.displayCutout() or
+                    WindowInsets.Type.ime(),
+            )
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+            windowInsets
+        }
+
         roleManager = getSystemService(RoleManager::class.java)
         whitelistStore = WhitelistStore(this)
         roleStatus = findViewById(R.id.role_status)
@@ -52,6 +64,11 @@ class MainActivity : ComponentActivity() {
         roleButton.setOnClickListener { requestScreeningRole() }
         contactsButton.setOnClickListener { requestContactsAccess() }
         findViewById<Button>(R.id.add_button).setOnClickListener { addNumber() }
+        numberInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
+            addNumber()
+            true
+        }
 
         updateStatus()
         renderNumbers()
@@ -64,9 +81,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun promptForInitialSetup() {
-        val setupPreferences = getSharedPreferences("setup", MODE_PRIVATE)
-        if (setupPreferences.getBoolean("prompted", false)) return
-        setupPreferences.edit { putBoolean("prompted", true) }
+        val setupPreferences = getSharedPreferences(PREFERENCES_SETUP, MODE_PRIVATE)
+        if (
+            setupPreferences.getBoolean(KEY_SETUP_PROMPTED, false) ||
+            !roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)
+        ) {
+            return
+        }
+        setupPreferences.edit { putBoolean(KEY_SETUP_PROMPTED, true) }
 
         if (!isScreeningRoleHeld()) {
             requestScreeningRole()
@@ -104,12 +126,12 @@ class MainActivity : ComponentActivity() {
         contactsStatus.setText(
             if (contactsGranted) R.string.contacts_granted else R.string.contacts_missing,
         )
-        contactsButton.visibility = if (contactsGranted) View.GONE else View.VISIBLE
+        contactsStatus.visibility = if (roleHeld) View.VISIBLE else View.GONE
+        contactsButton.visibility = if (roleHeld && !contactsGranted) View.VISIBLE else View.GONE
     }
 
     private fun isScreeningRoleHeld(): Boolean =
-        roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) &&
-            roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
+        roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
 
     private fun addNumber() {
         val rawNumber = numberInput.text.toString()
@@ -130,11 +152,19 @@ class MainActivity : ComponentActivity() {
         numbers.forEach { number ->
             val row = layoutInflater.inflate(R.layout.whitelist_row, numberList, false)
             row.findViewById<TextView>(R.id.allowed_number).text = number
-            row.findViewById<Button>(R.id.remove_button).setOnClickListener {
-                whitelistStore.remove(number)
-                renderNumbers()
+            row.findViewById<Button>(R.id.remove_button).apply {
+                contentDescription = getString(R.string.remove_number_description, number)
+                setOnClickListener {
+                    whitelistStore.remove(number)
+                    renderNumbers()
+                }
             }
             numberList.addView(row)
         }
+    }
+
+    private companion object {
+        const val PREFERENCES_SETUP = "setup"
+        const val KEY_SETUP_PROMPTED = "prompted"
     }
 }
