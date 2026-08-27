@@ -1,0 +1,50 @@
+name: Build Android APK
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build development APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Build Android APK
+        run: ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+
+      - name: Publish APK to GitHub Releases
+        if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: android-${{ github.run_number }}.${{ github.run_attempt }}
+          RELEASE_TITLE: Android APK ${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          gh release create "$RELEASE_TAG" app/build/outputs/apk/debug/app-debug.apk#CallBlocker.apk \
+            --title "$RELEASE_TITLE" \
+            --notes "Development Android APK built from ${{ github.sha }}." \
+            --target "${{ github.sha }}" \
+            --latest

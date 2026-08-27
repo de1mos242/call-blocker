@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Call Blocker</string>
+    <string name="app_description">Numbers outside this local whitelist are rejected when Android presents them for screening. Android does not present withheld calls to screening apps.</string>
+    <string name="role_active">Status: active Call Screening app</string>
+    <string name="role_inactive">Status: not the active Call Screening app</string>
+    <string name="role_unavailable">Status: Call Screening is unavailable on this device</string>
+    <string name="assign_role">Make active</string>
+    <string name="contacts_granted">Saved contacts are checked against this whitelist.</string>
+    <string name="contacts_missing">Allow contacts access so saved contacts are not automatically bypassed by Android.</string>
+    <string name="grant_contacts">Allow contacts access</string>
+    <string name="whitelist_heading">Allowed phone numbers</string>
+    <string name="number_input_label">Phone number, for example +49 30 123456</string>
+    <string name="add_number">Add number</string>
+    <string name="remove_number">Remove</string>
+    <string name="remove_number_description">Remove %1$s</string>
+    <string name="empty_whitelist">The whitelist is empty. All calls presented to the app will be rejected.</string>
+    <string name="invalid_number">Enter a valid phone number</string>
+</resources>
