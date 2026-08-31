@@ -1,6 +1,7 @@
 package com.de1mos.callblocker
 
 import android.Manifest
+import android.app.AlertDialog
 import android.app.role.RoleManager
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -18,16 +19,23 @@ import androidx.core.content.edit
 class MainActivity : ComponentActivity() {
     private lateinit var roleManager: RoleManager
     private lateinit var whitelistStore: WhitelistStore
+    private lateinit var pinStore: PinStore
+    private lateinit var root: View
     private lateinit var roleStatus: TextView
     private lateinit var contactsStatus: TextView
     private lateinit var roleButton: Button
     private lateinit var contactsButton: Button
     private lateinit var numberInput: EditText
     private lateinit var numberList: LinearLayout
+    private var pinDialog: AlertDialog? = null
+    private var isUnlocked = false
+    private var externalRequestInProgress = false
 
     private val roleRequest = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
+        externalRequestInProgress = false
+        if (!isUnlocked) return@registerForActivityResult
         updateStatus()
         if (isScreeningRoleHeld()) requestContactsAccess()
     }
@@ -35,6 +43,8 @@ class MainActivity : ComponentActivity() {
     private val contactsRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
+        externalRequestInProgress = false
+        if (!isUnlocked) return@registerForActivityResult
         updateStatus()
     }
 
@@ -42,7 +52,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        findViewById<View>(R.id.root).setOnApplyWindowInsetsListener { view, windowInsets ->
+        root = findViewById(R.id.root)
+        root.setOnApplyWindowInsetsListener { view, windowInsets ->
             val insets = windowInsets.getInsets(
                 WindowInsets.Type.systemBars() or
                     WindowInsets.Type.displayCutout() or
@@ -54,6 +65,7 @@ class MainActivity : ComponentActivity() {
 
         roleManager = getSystemService(RoleManager::class.java)
         whitelistStore = WhitelistStore(this)
+        pinStore = PinStore(this)
         roleStatus = findViewById(R.id.role_status)
         contactsStatus = findViewById(R.id.contacts_status)
         roleButton = findViewById(R.id.role_button)
@@ -70,14 +82,102 @@ class MainActivity : ComponentActivity() {
             true
         }
 
-        updateStatus()
-        renderNumbers()
-        promptForInitialSetup()
+        requirePinAccess()
     }
 
     override fun onResume() {
         super.onResume()
-        if (::roleManager.isInitialized) updateStatus()
+        if (!::roleManager.isInitialized) return
+        if (isUnlocked) {
+            updateStatus()
+        } else if (pinDialog?.isShowing != true) {
+            requirePinAccess()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!externalRequestInProgress && ::root.isInitialized) {
+            isUnlocked = false
+            root.visibility = View.INVISIBLE
+            pinDialog?.dismiss()
+            pinDialog = null
+        }
+    }
+
+    private fun requirePinAccess() {
+        root.visibility = View.INVISIBLE
+        showPinDialog(isSetup = !pinStore.isConfigured())
+    }
+
+    private fun showPinDialog(isSetup: Boolean) {
+        if (isFinishing || pinDialog?.isShowing == true) return
+
+        val content = layoutInflater.inflate(R.layout.dialog_pin, null)
+        val pinInput = content.findViewById<EditText>(R.id.pin_input)
+        val confirmationInput = content.findViewById<EditText>(R.id.pin_confirmation)
+        confirmationInput.visibility = if (isSetup) View.VISIBLE else View.GONE
+        pinInput.imeOptions = if (isSetup) EditorInfo.IME_ACTION_NEXT else EditorInfo.IME_ACTION_DONE
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (isSetup) R.string.pin_setup_title else R.string.pin_unlock_title)
+            .setMessage(if (isSetup) R.string.pin_setup_message else R.string.pin_unlock_message)
+            .setView(content)
+            .setPositiveButton(if (isSetup) R.string.create_pin else R.string.unlock, null)
+            .setNegativeButton(R.string.exit) { _, _ -> finish() }
+            .setCancelable(false)
+            .create()
+        pinDialog = dialog
+
+        dialog.setOnShowListener {
+            val submit = View.OnClickListener {
+                val pin = pinInput.text.toString()
+                if (isSetup) {
+                    when {
+                        pin.length < MINIMUM_PIN_LENGTH -> {
+                            pinInput.error = getString(R.string.pin_requirement)
+                            pinInput.requestFocus()
+                        }
+                        pin != confirmationInput.text.toString() -> {
+                            confirmationInput.error = getString(R.string.pin_mismatch)
+                            confirmationInput.requestFocus()
+                        }
+                        else -> {
+                            pinStore.setPin(pin)
+                            dialog.dismiss()
+                            unlockConfiguration()
+                        }
+                    }
+                } else if (pinStore.verify(pin)) {
+                    dialog.dismiss()
+                    unlockConfiguration()
+                } else {
+                    pinInput.text.clear()
+                    pinInput.error = getString(R.string.incorrect_pin)
+                    pinInput.requestFocus()
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(submit)
+            val actionInput = if (isSetup) confirmationInput else pinInput
+            actionInput.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
+                submit.onClick(actionInput)
+                true
+            }
+            pinInput.requestFocus()
+        }
+        dialog.setOnDismissListener {
+            if (pinDialog === dialog) pinDialog = null
+        }
+        dialog.show()
+    }
+
+    private fun unlockConfiguration() {
+        isUnlocked = true
+        root.visibility = View.VISIBLE
+        updateStatus()
+        renderNumbers()
+        promptForInitialSetup()
     }
 
     private fun promptForInitialSetup() {
@@ -99,12 +199,14 @@ class MainActivity : ComponentActivity() {
 
     private fun requestScreeningRole() {
         if (roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
+            externalRequestInProgress = true
             roleRequest.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
         }
     }
 
     private fun requestContactsAccess() {
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            externalRequestInProgress = true
             contactsRequest.launch(Manifest.permission.READ_CONTACTS)
         }
     }
@@ -166,5 +268,6 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val PREFERENCES_SETUP = "setup"
         const val KEY_SETUP_PROMPTED = "prompted"
+        const val MINIMUM_PIN_LENGTH = 4
     }
 }

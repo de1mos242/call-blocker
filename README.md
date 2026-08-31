@@ -24,8 +24,8 @@ You can also transfer the APK to the phone and open it there. Android may ask yo
 
 ## Set Up
 
-1. Open Call Blocker. On first launch, Android asks whether it may become the Call Screening app.
-2. Approve the request. If it was dismissed, tap **Make active** in the app.
+1. Open Call Blocker and create a PIN of at least four digits. The PIN is required whenever the app is opened or brought back from the background. If it is forgotten, uninstall and reinstall the app to reset it.
+2. Android asks whether Call Blocker may become the Call Screening app. Approve the request. If it was dismissed, tap **Make active** in the app.
 3. Grant contacts access when requested. Android does not send calls from saved contacts to a screening app without this permission, so it is needed to enforce the local whitelist for those callers too.
 4. Add every number that should be allowed to ring. Android validates numbers and stores them in E.164 form, so formatting differences such as spaces, hyphens, parentheses, or a national number versus `+49...` are handled. National numbers are interpreted using the SIM country, then the network or device country when no SIM country is available.
 
