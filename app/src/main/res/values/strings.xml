@@ -16,4 +16,16 @@
     <string name="remove_number_description">Remove %1$s</string>
     <string name="empty_whitelist">The whitelist is empty. All calls presented to the app will be rejected.</string>
     <string name="invalid_number">Enter a valid phone number</string>
+    <string name="pin_setup_title">Create a PIN</string>
+    <string name="pin_setup_message">Protect the call-blocking settings with a PIN of at least 4 digits. Uninstall and reinstall the app if you forget it.</string>
+    <string name="pin_unlock_title">Enter PIN</string>
+    <string name="pin_unlock_message">Enter the parent PIN to access Call Blocker settings.</string>
+    <string name="pin_hint">PIN</string>
+    <string name="pin_confirmation_hint">Confirm PIN</string>
+    <string name="pin_requirement">Use at least 4 digits</string>
+    <string name="pin_mismatch">PINs do not match</string>
+    <string name="incorrect_pin">Incorrect PIN</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="unlock">Unlock</string>
+    <string name="exit">Exit</string>
 </resources>
